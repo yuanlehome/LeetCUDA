@@ -59,7 +59,9 @@ def run_benchmark(
     total_time = (end - start) * 1000  # ms
     mean_time = total_time / iters
     out_info = f"out_{tag}"
-    out_val = out.flatten().detach().cpu().numpy().tolist()[:2]
+    out_val = (
+        out.flatten().detach().cpu().to(torch.float32).numpy().tolist()[:3]
+    )
     out_val = [round(v, 8) for v in out_val]
     print(f"{out_info:>18}: {out_val}, time:{mean_time:.8f}ms")
     if show_all:
@@ -76,15 +78,15 @@ for S, K in SKs:
     print(" " * 40 + f"S={S}, K={K}")
     a = torch.randn((S, K)).cuda().float().contiguous()
     b = torch.randn((S, K)).cuda().float().contiguous()
-    c = torch.zeros_like(a).cuda().float().contiguous()
+    c = torch.empty_like(a).cuda().float().contiguous()
     run_benchmark(lib.elementwise_add_f32, a, b, "f32", c)
     run_benchmark(lib.elementwise_add_f32x4, a, b, "f32x4", c)
     run_benchmark(partial(torch.add, out=c), a, b, "f32_th")
 
     print("-" * 85)
-    a_f16 = a.half().contiguous()
-    b_f16 = b.half().contiguous()
-    c_f16 = c.half().contiguous()
+    a_f16 = a.to(torch.half).contiguous()
+    b_f16 = b.to(torch.half).contiguous()
+    c_f16 = c.to(torch.half).contiguous()
     run_benchmark(lib.elementwise_add_f16, a_f16, b_f16, "f16", c_f16)
     run_benchmark(lib.elementwise_add_f16x2, a_f16, b_f16, "f16x2", c_f16)
     run_benchmark(lib.elementwise_add_f16x8, a_f16, b_f16, "f16x8", c_f16)
@@ -92,4 +94,16 @@ for S, K in SKs:
         lib.elementwise_add_f16x8_pack, a_f16, b_f16, "f16x8pack", c_f16
     )
     run_benchmark(partial(torch.add, out=c_f16), a_f16, b_f16, "f16_th")
+
+    print("-" * 85)
+    a_bf16 = a.to(torch.bfloat16).contiguous()
+    b_bf16 = b.to(torch.bfloat16).contiguous()
+    c_bf16 = c.to(torch.bfloat16).contiguous()
+    run_benchmark(lib.elementwise_add_bf16, a_bf16, b_bf16, "bf16", c_bf16)
+    run_benchmark(lib.elementwise_add_bf16x2, a_bf16, b_bf16, "bf16x2", c_bf16)
+    run_benchmark(lib.elementwise_add_bf16x8, a_bf16, b_bf16, "bf16x8", c_bf16)
+    run_benchmark(
+        lib.elementwise_add_bf16x8_pack, a_bf16, b_bf16, "bf16x8pack", c_bf16
+    )
+    run_benchmark(partial(torch.add, out=c_bf16), a_bf16, b_bf16, "bf16_th")
     print("-" * 85)
