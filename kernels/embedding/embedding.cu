@@ -14,16 +14,15 @@
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
 __global__ void embedding_f32_kernel(const int *idx, float *weight,
-                                     float *output, int n, int emb_size) {
+                                     float *output, int emb_size) {
   int tx = threadIdx.x;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
   output[bx * emb_size + tx] = weight[offset + tx];
 }
 
 __global__ void embedding_f32x4_kernel(const int *idx, float *weight,
-                                       float *output, int n, int emb_size) {
+                                       float *output, int emb_size) {
   int tx = threadIdx.x * 4;
   int bx = blockIdx.x;
   int offset = idx[bx] * emb_size;
@@ -34,27 +33,23 @@ __global__ void embedding_f32x4_kernel(const int *idx, float *weight,
 }
 
 __global__ void embedding_f32x4_pack_kernel(const int *idx, float *weight,
-                                            float *output, int n,
-                                            int emb_size) {
-  int tx = threadIdx.x;
+                                            float *output, int emb_size) {
+  int tx = threadIdx.x * 4;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
-  LDST128BITS(output[bx * emb_size + 4 * tx]) =
-      LDST128BITS(weight[offset + 4 * tx]);
+  LDST128BITS(output[bx * emb_size + tx]) = LDST128BITS(weight[offset + tx]);
 }
 
 __global__ void embedding_f16_kernel(const int *idx, half *weight, half *output,
-                                     int n, int emb_size) {
+                                     int emb_size) {
   int tx = threadIdx.x;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
   output[bx * emb_size + tx] = weight[offset + tx];
 }
 
 __global__ void embedding_f16x8_kernel(const int *idx, half *weight,
-                                       half *output, int n, int emb_size) {
+                                       half *output, int emb_size) {
   int tx = threadIdx.x * 8;
   int bx = blockIdx.x;
   int offset = idx[bx] * emb_size;
@@ -69,13 +64,11 @@ __global__ void embedding_f16x8_kernel(const int *idx, half *weight,
 }
 
 __global__ void embedding_f16x8_pack_kernel(const int *idx, half *weight,
-                                            half *output, int n, int emb_size) {
-  int tx = threadIdx.x;
+                                            half *output, int emb_size) {
+  int tx = threadIdx.x * 8;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
-  LDST128BITS(output[bx * emb_size + 8 * tx]) =
-      LDST128BITS(weight[offset + 8 * tx]);
+  LDST128BITS(output[bx * emb_size + tx]) = LDST128BITS(weight[offset + tx]);
 }
 
 #define STRINGFY(str) #str

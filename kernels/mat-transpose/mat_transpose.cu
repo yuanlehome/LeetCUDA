@@ -10,18 +10,14 @@
 #include <torch/types.h>
 #include <vector>
 
-#define WARP_SIZE 256
-#define WARP_SIZE_S 16
+#define BLOCK_SIZE 256
+#define BLOCK_SIZE_S 16
 #define PAD 1
 #define INT4(value) (reinterpret_cast<int4 *>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(&(value))[0])
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
-#define MAX_EXP_F32 88.3762626647949f
-#define MIN_EXP_F32 -88.3762626647949f
-#define MAX_EXP_F16 __float2half(11.089866488461016f)
-#define MIN_EXP_F16 __float2half(-9.704060527839234f)
 
 // FP32
 // col2row means read x[row][col] and
@@ -147,7 +143,7 @@ __global__ void mat_transpose_f32x4_shared_col2row2d_kernel(float *x, float *y,
   const int global_y = blockIdx.y * blockDim.y + threadIdx.y;
   const int local_x = threadIdx.x;
   const int local_y = threadIdx.y;
-  __shared__ float tile[WARP_SIZE_S][WARP_SIZE_S * 4];
+  __shared__ float tile[BLOCK_SIZE_S][BLOCK_SIZE_S * 4];
   if (global_x * 4 + 3 < col + 3 && global_y < row) {
     // load value from x to shared memory
     float4 x_val = reinterpret_cast<float4 *>(x)[global_y * col / 4 + global_x];
@@ -156,7 +152,7 @@ __global__ void mat_transpose_f32x4_shared_col2row2d_kernel(float *x, float *y,
     float4 smem_val;
     // load value from shared memory to y.
     // add STRIDE to satisfied different block size.
-    constexpr int STRIDE = WARP_SIZE_S / 4;
+    constexpr int STRIDE = BLOCK_SIZE_S / 4;
     smem_val.x = tile[(local_y % STRIDE) * 4][local_x * 4 + local_y / STRIDE];
     smem_val.y =
         tile[(local_y % STRIDE) * 4 + 1][local_x * 4 + local_y / STRIDE];
@@ -179,7 +175,7 @@ __global__ void mat_transpose_f32x4_shared_row2col2d_kernel(float *x, float *y,
   const int global_y = blockIdx.y * blockDim.y + threadIdx.y;
   const int local_x = threadIdx.x;
   const int local_y = threadIdx.y;
-  __shared__ float tile[WARP_SIZE_S * 4][WARP_SIZE_S];
+  __shared__ float tile[BLOCK_SIZE_S * 4][BLOCK_SIZE_S];
   if (global_y * 4 < row && global_x < col) {
     // load value from x to shared memory
     float4 x_val;
@@ -196,7 +192,7 @@ __global__ void mat_transpose_f32x4_shared_row2col2d_kernel(float *x, float *y,
     // load value from shared memory to y.
     // add STRIDE to satisfied different block size.
     // map index n*n to (n/4)*(n*4)
-    constexpr int STRIDE = WARP_SIZE_S / 4;
+    constexpr int STRIDE = BLOCK_SIZE_S / 4;
     smem_val.x = tile[local_x * 4 + local_y / STRIDE][(local_y % STRIDE) * 4];
     smem_val.y =
         tile[local_x * 4 + local_y / STRIDE][(local_y % STRIDE) * 4 + 1];
@@ -224,7 +220,7 @@ __global__ void mat_transpose_f32x4_shared_bcf_col2row2d_kernel(float *x,
   const int global_y = blockIdx.y * blockDim.y + threadIdx.y;
   const int local_x = threadIdx.x;
   const int local_y = threadIdx.y;
-  __shared__ float tile[WARP_SIZE_S][WARP_SIZE_S * 4 + PAD];
+  __shared__ float tile[BLOCK_SIZE_S][BLOCK_SIZE_S * 4 + PAD];
   if (global_x * 4 + 3 < col + 3 && global_y < row) {
     // load value from x to shared memory
     float4 x_val = reinterpret_cast<float4 *>(x)[global_y * col / 4 + global_x];
@@ -236,7 +232,7 @@ __global__ void mat_transpose_f32x4_shared_bcf_col2row2d_kernel(float *x,
     float4 smem_val;
     // load value from shared memory to y.
     // add STRIDE to satisfied different block size.
-    constexpr int STRIDE = WARP_SIZE_S / 4;
+    constexpr int STRIDE = BLOCK_SIZE_S / 4;
     smem_val.x = tile[(local_y % STRIDE) * 4][local_x * 4 + local_y / STRIDE];
     smem_val.y =
         tile[(local_y % STRIDE) * 4 + 1][local_x * 4 + local_y / STRIDE];
@@ -260,7 +256,7 @@ __global__ void mat_transpose_f32x4_shared_bcf_row2col2d_kernel(float *x,
   const int global_y = blockIdx.y * blockDim.y + threadIdx.y;
   const int local_x = threadIdx.x;
   const int local_y = threadIdx.y;
-  __shared__ float tile[WARP_SIZE_S * 4][WARP_SIZE_S + PAD];
+  __shared__ float tile[BLOCK_SIZE_S * 4][BLOCK_SIZE_S + PAD];
   if (global_y * 4 < row && global_x < col) {
     // load value from x to shared memory
     float4 x_val;
@@ -277,7 +273,7 @@ __global__ void mat_transpose_f32x4_shared_bcf_row2col2d_kernel(float *x,
     // load value from shared memory to y.
     // add STRIDE to satisfied different block size.
     // map index n*n to (n/4)*(n*4)
-    constexpr int STRIDE = WARP_SIZE_S / 4;
+    constexpr int STRIDE = BLOCK_SIZE_S / 4;
     smem_val.x = tile[local_x * 4 + local_y / STRIDE][(local_y % STRIDE) * 4];
     smem_val.y =
         tile[local_x * 4 + local_y / STRIDE][(local_y % STRIDE) * 4 + 1];
@@ -303,7 +299,7 @@ __global__ void mat_transpose_f32x4_shared_bcf_merge_write_row2col2d_kernel(
   const int global_y = blockIdx.y * blockDim.y + threadIdx.y;
   const int local_x = threadIdx.x;
   const int local_y = threadIdx.y;
-  __shared__ float tile[WARP_SIZE_S * 4][WARP_SIZE_S + PAD];
+  __shared__ float tile[BLOCK_SIZE_S * 4][BLOCK_SIZE_S + PAD];
   if (global_y * 4 < row && global_x < col) {
     // load value from x to shared memory
     float4 x_val;
@@ -347,8 +343,8 @@ __global__ void mat_transpose_f32x4_shared_bcf_merge_write_row2col2d_kernel(
     CHECK_TORCH_TENSOR_DTYPE(y, (th_type))                                     \
     const int M = x.size(0);                                                   \
     const int N = x.size(1);                                                   \
-    dim3 block(WARP_SIZE);                                                     \
-    dim3 grid(((N * M + WARP_SIZE - 1) / n_pack / WARP_SIZE));                 \
+    dim3 block(BLOCK_SIZE);                                                    \
+    dim3 grid(((N * M + BLOCK_SIZE - 1) / n_pack / BLOCK_SIZE));               \
     mat_transpose_##tag##_kernel<<<grid, block>>>(                             \
         reinterpret_cast<element_type *>(x.data_ptr()),                        \
         reinterpret_cast<element_type *>(y.data_ptr()), M, N);                 \
@@ -361,9 +357,9 @@ __global__ void mat_transpose_f32x4_shared_bcf_merge_write_row2col2d_kernel(
     CHECK_TORCH_TENSOR_DTYPE(y, (th_type))                                     \
     const int M = x.size(0);                                                   \
     const int N = x.size(1);                                                   \
-    dim3 block(WARP_SIZE_S, WARP_SIZE_S);                                      \
-    dim3 grid((N + WARP_SIZE_S - 1) / (WARP_SIZE_S * n_element_col),           \
-              (M + WARP_SIZE_S - 1) / (WARP_SIZE_S * n_element_row));          \
+    dim3 block(BLOCK_SIZE_S, BLOCK_SIZE_S);                                    \
+    dim3 grid((N + BLOCK_SIZE_S - 1) / (BLOCK_SIZE_S * n_element_col),         \
+              (M + BLOCK_SIZE_S - 1) / (BLOCK_SIZE_S * n_element_row));        \
     mat_transpose_##tag##2d_kernel < < < grid,                                 \
         block >>> (reinterpret_cast<element_type *>(x.data_ptr()),             \
                    reinterpret_cast<element_type *>(y.data_ptr()), M, N);      \

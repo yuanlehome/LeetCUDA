@@ -14,7 +14,7 @@
 
 // Histogram
 // grid(N/256), block(256)
-// a: Nx1, y: count histogram, a >= 1
+// a: Nx1, y: count histogram, a >= 0
 __global__ void histogram_i32_kernel(int *a, int *y, int N) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < N)
@@ -23,7 +23,7 @@ __global__ void histogram_i32_kernel(int *a, int *y, int N) {
 
 // Histogram + Vec4
 // grid(N/256), block(256/4)
-// a: Nx1, y: count histogram, a >= 1
+// a: Nx1, y: count histogram, a >= 0
 __global__ void histogram_i32x4_kernel(int *a, int *y, int N) {
   int idx = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx < N) {
