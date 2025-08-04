@@ -104,30 +104,6 @@ for M, N in MNs:
     run_benchmark(lib.mat_transpose_f32x4_col2row2d, x, "f32x4_col2row(2d)", y)
     run_benchmark(lib.mat_transpose_f32x4_row2col2d, x, "f32x4_row2col(2d)", y)
     run_benchmark(
-        lib.mat_transpose_f32x4_shared_col2row2d,
-        x,
-        "f32x4_shared_col2row(2d)",
-        y,
-    )
-    run_benchmark(
-        lib.mat_transpose_f32x4_shared_row2col2d,
-        x,
-        "f32x4_shared_row2col(2d)",
-        y,
-    )
-    run_benchmark(
-        lib.mat_transpose_f32x4_shared_bcf_col2row2d,
-        x,
-        "f32x4_shared_bcf_col2row(2d)",
-        y,
-    )
-    run_benchmark(
-        lib.mat_transpose_f32x4_shared_bcf_row2col2d,
-        x,
-        "f32x4_shared_bcf_row2col(2d)",
-        y,
-    )
-    run_benchmark(
         lib.mat_transpose_f32x4_shared_bcf_merge_write_row2col2d,
         x,
         "f32x4_shared_bcf_merge_write_row2col(2d)",
