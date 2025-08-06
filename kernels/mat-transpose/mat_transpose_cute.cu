@@ -19,6 +19,9 @@ using namespace cute;
     }                                                                          \
   } while (0)
 
+// CUTE
+// 的核心优势在于通过布局抽象隐藏了复杂的索引计算，开发者只需关注数据布局的逻辑关
+// 系，而不用手动计算每个元素的索引位置。这种抽象使代码更简洁、更易维护，同时保持高性能。
 template <typename T, int BLK_M, int BLK_N, typename ThreadLayoutA,
           typename ThreadLayoutB>
 __global__ void mat_transpose_cute_reg_kernel(const T *pA, T *pB, int M, int N,
@@ -27,11 +30,14 @@ __global__ void mat_transpose_cute_reg_kernel(const T *pA, T *pB, int M, int N,
   int tx = threadIdx.x;
   int bx = blockIdx.x, by = blockIdx.y;
 
+  // make_shape(M, N) 是在运行时指定张量大小
   auto mA = make_tensor(make_gmem_ptr(pA),
                         make_layout(make_shape(M, N), GenRowMajor{})); // (M, N)
   auto mB = make_tensor(make_gmem_ptr(pB),
                         make_layout(make_shape(N, M), GenRowMajor{})); // (N, M)
 
+  // make_shape(Int<BLK_M>{}, Int<BLK_N>{}) 是在编译期指定固定 tile/block
+  // 大小，利于优化
   auto gA = local_tile(mA, make_shape(Int<BLK_M>{}, Int<BLK_N>{}),
                        make_coord(bx, by)); // (BM, BN)
   auto gB = local_tile(mB, make_shape(Int<BLK_N>{}, Int<BLK_M>{}),
@@ -56,10 +62,14 @@ __global__ void mat_transpose_cute_reg_kernel(const T *pA, T *pB, int M, int N,
 }
 
 void mat_transpose_cute_row2col_reg(torch::Tensor x, torch::Tensor y) {
+  // BM 和 BN 可以理解为每个 block 要处理的数据量为 BM * BN
   const int BM = UNIT_BLK_SIZE;
   const int BN = UNIT_BLK_SIZE;
   const int M = x.size(0);
   const int N = x.size(1);
+  // 输入布局 (ColMajor): 同一线程束中的线程访问连续列
+  // 输出布局 (RowMajor): 同一线程束中的线程访问连续行
+  // 因此这里是合并写入，效率更高！
   auto tA = make_layout(make_shape(Int<BM>{}, Int<BN>{}), GenColMajor{});
   auto tB = make_layout(make_shape(Int<BN>{}, Int<BM>{}), GenRowMajor{});
   static_assert(size(tA) == size(tB));
@@ -75,6 +85,9 @@ void mat_transpose_cute_col2row_reg(torch::Tensor x, torch::Tensor y) {
   const int BN = UNIT_BLK_SIZE;
   const int M = x.size(0);
   const int N = x.size(1);
+  // 输入布局 (RowMajor): 同一线程束中的线程访问连续行
+  // 输出布局 (ColMajor): 同一线程束中的线程访问连续列
+  // 因此这里是非合并写入，效率要差！
   auto tA = make_layout(make_shape(Int<BM>{}, Int<BN>{}), GenRowMajor{});
   auto tB = make_layout(make_shape(Int<BN>{}, Int<BM>{}), GenColMajor{});
   static_assert(size(tA) == size(tB));
